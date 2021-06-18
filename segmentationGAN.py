@@ -9,9 +9,6 @@ import segmentationGAN.losses as losses
 from skimage.io import imsave
 from segmentationGAN.image import convert_to_8bits_rgb
 
-weighted_loss = losses.weighted_categorical_crossentropy(
-    np.array([0.4, 1.4, 0.8]))
-
 
 class SegmentationGAN:
     """
@@ -32,7 +29,8 @@ class SegmentationGAN:
               inputs,
               targets,
               validation_data=None,
-              checkpoint_dir="./"):
+              checkpoint_dir="./",
+              class_weights=None):
         """
         Trains the segmentation GAN.
         -- inputs: array of shape (samples, c, h, w)
@@ -42,7 +40,18 @@ class SegmentationGAN:
                     of the segmentation classes.
         -- validation_data: optional couple (valid_inputs, valid_targets)
                             to evaluate the network after training.
+        -- class_weights: Array indicating the weight for each segmentation
+                          class. If None, all classes will be of equal
+                          importance in the loss.
         """
+        if class_weights is not None:
+            weighted_loss = losses.weighted_categorical_crossentropy(
+                class_weights)
+        else:
+            # If no weights were passed, consider them to be all one
+            weighted_loss = losses.weighted_categorical_crossentropy(
+                np.ones((self._nb_classes, )))
+
         # First, the targets are converted to one-hot encoding
         targets = tf.one_hot(targets.astype(np.uint8),
                              self._nb_classes,

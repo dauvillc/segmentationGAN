@@ -24,13 +24,19 @@ def weighted_categorical_crossentropy(weights):
 
     def loss(y_true, y_pred):
         y_pred = tf.clip_by_value(y_pred, epsilon, 1)
-        loss = y_true * tf.math.log(y_pred) * weights
-        return -tf.reduce_mean(tf.reduce_sum(loss, axis=(1, 2, 3)))
+
+        # Sums over the spatial dimensions - output: (bs, 3)
+        loss = -tf.reduce_sum(y_true * tf.math.log(y_pred), axis=(2, 3))
+
+        # Average over the batch - output: (3,)
+        loss = tf.reduce_mean(loss, axis=0)
+
+        # Applies the weights
+        loss = loss * weights
+
+        return loss
 
     return loss
-
-
-weighted_loss = weighted_categorical_crossentropy(np.array([0.4, 1.4, 0.8]))
 
 
 def generator_loss(disc_generated_output, gen_output, target):
@@ -48,12 +54,12 @@ def generator_loss(disc_generated_output, gen_output, target):
     # gan_loss = bin_crossentropy(tf.ones_like(disc_generated_output),
     #                             disc_generated_output)
     # base_loss = weighted_loss(gen_output, target)
-    base_loss = weighted_loss(target, gen_output)
+    # base_loss = weighted_loss(target, gen_output)
 
     # the final loss mixes both terms, with the default lambda coeff of 10
-    total_gen_loss = base_loss
+    total_gen_loss = None
 
-    return total_gen_loss, None, base_loss
+    return total_gen_loss, None, None
 
 
 def discriminator_loss(disc_real_output, disc_generated_output):
