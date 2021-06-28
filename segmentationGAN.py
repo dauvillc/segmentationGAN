@@ -18,17 +18,20 @@ class SegmentationGAN:
     A Segmentation GAN is a model adapted from
     P.Isola et al. )s pix2pix for segmentation tasks.
     """
-    def __init__(self, name, generator, input_shape, nb_classes):
+    def __init__(self, name, generator, input_shape, nb_classes, use_input_for_discriminator=True):
         """
         -- name: Name of this model
         -- generator: tf.keras.Model to be used as generator
         -- nb_classes: Number of classes in this segmentation task.
+        -- use_use_input_for_discriminator: Whether the discriminator should receive the input image
+                    when classifying the segmentations as real or fake.
         """
         self._gen = generator
-        self._disc = get_patch_discriminator(input_shape, nb_classes)
+        self._disc = get_patch_discriminator(input_shape, nb_classes, use_input_for_discriminator)
 
         self._name = name
         self._nb_classes = nb_classes
+        self._use_input_for_disc = use_input_for_discriminator
 
     def train(self,
               inputs,
@@ -123,11 +126,15 @@ DISC loss: {:1.3f}".format(base_loss, gan_loss, gen_loss, disc_loss))
 
         # ===========================================================
 
+        # Save the model at the end of the training phase
+        print("Saving model into ", savefile)
+        self._gen.save(savefile)
+
         # Applies the gen to the validation data
         print("Applying to the validation data")
         if validation_data is not None:
             valid_inpt, valid_target = validation_data
-            self.save_validation_examples(valid_inpt, valid_target)
+            self.save_validation_examples(valid_inpt, valid_target, checkpoint_dir)
 
     @tf.function
     def train_step(self, input_image, target, loss, gen_optim, disc_optim):
@@ -143,8 +150,18 @@ DISC loss: {:1.3f}".format(base_loss, gan_loss, gen_loss, disc_loss))
         with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
             # Forward pass
             gen_output = self._gen(input_image, training=True)
-            disc_real_output = self._disc([input_image, target], training=True)
-            disc_generated_output = self._disc([input_image, gen_output],
+
+            disc_real_inputs = [target]
+            if self._use_input_for_disc:
+                disc_real_inputs = [input_image, target]
+            disc_real_output = self._disc(disc_real_inputs, training=True)
+
+            # Check whether the discriminator receives the input
+            disc_fake_inputs = [gen_output]
+            if self._use_input_for_disc:
+                disc_fake_inputs = [input_image, gen_output]
+
+            disc_generated_output = self._disc(disc_fake_inputs,
                                                training=True)
 
             # Compute the losses

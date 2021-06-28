@@ -140,6 +140,14 @@ def downsampling(filters, size, apply_batchnorm=True):
                       kernel_initializer=initializer,
                       use_bias=False,
                       data_format="channels_first"))
+    result.add(
+        layers.Conv2D(filters,
+                      3,
+                      strides=1,
+                      padding='same',
+                      kernel_initializer=initializer,
+                      use_bias=False,
+                      data_format="channels_first"))
 
     if apply_batchnorm:
         result.add(layers.BatchNormalization(axis=1))
@@ -149,20 +157,29 @@ def downsampling(filters, size, apply_batchnorm=True):
     return result
 
 
-def get_patch_discriminator(input_image_shape, nb_classes):
+def get_patch_discriminator(input_image_shape, nb_classes, use_input_image=True):
     """
     Returns a patch net discriminator.
+    -- input_image_shape: Shape of the input image, including the batch size
+    -- nb_classes: Number of classes in the segmentation task
+    -- use_input_image: if False, the discriminator will not receive the input image to classify
+                        the segmentation as real or fake.
     A Patch net is a fully convolutional network which classifies
     each pixels into two possible classes (real / fake in the case of
     a GAN).
     """
     initializer = tf.random_normal_initializer(0., 0.02)
 
-    input_img = layers.Input(shape=input_image_shape, name="input_img")
-    target = layers.Input(
-        shape=[nb_classes, input_image_shape[1], input_image_shape[2]],
-        name="target_image")
-    x = layers.concatenate([input_img, target], axis=1)  # (bs, 96, 96, 5)
+    image_input = layers.Input(shape=input_image_shape, name="input_img")
+
+    x = layers.Input(
+            shape=[nb_classes, input_image_shape[1], input_image_shape[2]],
+            name="target_image")
+    inputs = [x]
+
+    if use_input_image:
+        inputs = [image_input, x]
+        x = layers.concatenate(inputs, axis=1)  # (bs, 96, 96, 5)
 
     down1 = downsampling(64, 4, False)(x)  # (bs, 48, 48, 64)
     down2 = downsampling(128, 4)(down1)  # (bs, 24, 24, 128)
@@ -189,4 +206,4 @@ def get_patch_discriminator(input_image_shape, nb_classes):
                          kernel_initializer=initializer)(
                              zero_pad2)  # (bs,10,10,256)
 
-    return Model(inputs=[input_img, target], outputs=last)
+    return Model(inputs=inputs, outputs=last)
