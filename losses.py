@@ -55,7 +55,7 @@ def generator_loss(disc_generated_output, gen_output, target, base_loss_func):
     # because the generator wants the disc to output ones on fake images
     gan_loss = bin_crossentropy(tf.ones_like(disc_generated_output),
                                 disc_generated_output)
-    base_loss = base_loss_func(target, gen_output) / 15
+    base_loss = base_loss_func(target, gen_output)
 
     # the final loss mixes both terms, with the default lambda coeff of 10
     total_gen_loss = base_loss + gan_loss
