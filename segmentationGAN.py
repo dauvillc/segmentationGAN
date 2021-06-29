@@ -11,6 +11,7 @@ from skimage.io import imsave
 from segmentationGAN.image import convert_to_8bits_rgb
 from segmentationGAN.models import get_patch_discriminator
 from segmentationGAN.preprocessing import coshuffle_arrays, coshuffle_lists
+from segmentationGAN.optim import LinearLRSchedule
 
 
 class SegmentationGAN:
@@ -79,11 +80,9 @@ class SegmentationGAN:
         target_batches = np.array_split(targets, total_batches)
 
         # Optimizers and Hyperparameters
-        gen_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            0.001, decay_steps=total_batches, decay_rate=0.97)
+        gen_lr_schedule = LinearLRSchedule(2e-4, total_batches * epochs)
+        disc_lr_schedule = LinearLRSchedule(2e-4, total_batches * epochs)
 
-        disc_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            0.001, decay_steps=total_batches, decay_rate=0.97)
         gen_optim = tf.keras.optimizers.Adam(learning_rate=gen_lr_schedule,
                                              beta_1=0.5)
         disc_optim = tf.keras.optimizers.Adam(learning_rate=disc_lr_schedule,
