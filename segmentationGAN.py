@@ -115,8 +115,7 @@ class SegmentationGAN:
             print(
                 "GEN base loss: {:1.3f} gan loss: {:1.3f} total loss: {:1.3f} \
 DISC loss: {:1.3f}".format(base_loss, gan_loss, gen_loss, disc_loss))
-            print("Current LR: ",
-                  gen_optim.learning_rate)
+            print("Current LR: ", gen_lr_schedule)
 
             # Save the model every 20 epochs
             if n_epoch % 20 == 0:
