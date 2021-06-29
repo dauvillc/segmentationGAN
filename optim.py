@@ -24,4 +24,4 @@ class LinearLRSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         return self.curr_val
 
     def __repr__(self):
-        return self.curr_val
+        return str(self.curr_val)
