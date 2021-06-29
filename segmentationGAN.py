@@ -80,10 +80,10 @@ class SegmentationGAN:
 
         # Optimizers and Hyperparameters
         gen_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            0.001, decay_steps=epochs * batch_size, decay_rate=0.9)
+            0.001, decay_steps=total_batches, decay_rate=0.97)
 
         disc_lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            0.001, decay_steps=epochs * batch_size, decay_rate=0.9)
+            0.001, decay_steps=total_batches, decay_rate=0.97)
         gen_optim = tf.keras.optimizers.Adam(learning_rate=gen_lr_schedule,
                                              beta_1=0.5)
         disc_optim = tf.keras.optimizers.Adam(learning_rate=disc_lr_schedule,
