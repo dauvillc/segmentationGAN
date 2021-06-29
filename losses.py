@@ -75,3 +75,12 @@ def discriminator_loss(disc_real_output, disc_generated_output):
     generated_loss = bin_crossentropy(tf.zeros_like(disc_generated_output),
                                       disc_generated_output)
     return real_loss + generated_loss
+
+
+def correction_loss(correction_network_output, target):
+    """
+    Loss for the correction network
+    -- correction_network_output: segmentation performed by the correction network
+    -- target: real segmentation
+    """
+    return bin_crossentropy(correction_network_output, target)

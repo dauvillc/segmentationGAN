@@ -7,12 +7,13 @@ from tensorflow.keras.models import Model
 import tensorflow.keras.layers as layers
 
 
-def get_unet_architecture(n_ch, input_height, input_width, style="classic"):
+def get_unet_architecture(n_ch, input_height, input_width, nb_classes, style="classic"):
     """
     Defines a UNet architecture of adapted to the given image size.
     -- n_ch: Number of channels to be expected in the images;
     -- input_height: Input images height;
     -- input_width: Input images width.
+    -- nb_classes: Number of segmentation classes
     -- style: 'classic' or 'gan'. If GAN, no reshaping is applied.
     """
     # Since the unet contains 3 max pooling layers, we need to make the input dimensions
@@ -107,7 +108,7 @@ def get_unet_architecture(n_ch, input_height, input_width, style="classic"):
     otpt = None
     if style == "gan":
         otpt = layers.Conv2D(
-            3,
+            nb_classes,
             (1, 1),
             padding='same',
             data_format='channels_first',
@@ -118,7 +119,7 @@ def get_unet_architecture(n_ch, input_height, input_width, style="classic"):
                                activation='relu',
                                padding='same',
                                data_format='channels_first')(conv14)
-        otpt = layers.Reshape((3, input_height * input_width))(conv15)
+        otpt = layers.Reshape((nb_classes, input_height * input_width))(conv15)
         otpt = layers.Permute((2, 1))(otpt)
 
         otpt = layers.Activation('softmax')(otpt)
@@ -160,7 +161,7 @@ def downsampling(filters, size, apply_batchnorm=True):
 def get_patch_discriminator(input_image_shape, nb_classes, use_input_image=True):
     """
     Returns a patch net discriminator.
-    -- input_image_shape: Shape of the input image, including the batch size
+    -- input_image_shape: Shape of the input image, including the channels
     -- nb_classes: Number of classes in the segmentation task
     -- use_input_image: if False, the discriminator will not receive the input image to classify
                         the segmentation as real or fake.

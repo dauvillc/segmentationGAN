@@ -9,7 +9,7 @@ import time
 import segmentationGAN.losses as losses
 from skimage.io import imsave
 from segmentationGAN.image import convert_to_8bits_rgb
-from segmentationGAN.models import get_patch_discriminator
+from segmentationGAN.models import get_patch_discriminator, get_unet_architecture
 from segmentationGAN.preprocessing import coshuffle_arrays, coshuffle_lists
 from segmentationGAN.optim import LinearLRSchedule
 
@@ -19,13 +19,17 @@ class SegmentationGAN:
     A Segmentation GAN is a model adapted from
     P.Isola et al. )s pix2pix for segmentation tasks.
     """
-    def __init__(self, name, generator, input_shape, nb_classes, use_input_for_discriminator=True):
+    def __init__(self, name, generator, input_shape, nb_classes, use_input_for_discriminator=True,
+                 use_correction=False):
         """
         -- name: Name of this model
         -- generator: tf.keras.Model to be used as generator
+        -- input_shape: shape of the input images
         -- nb_classes: Number of classes in this segmentation task.
         -- use_use_input_for_discriminator: Whether the discriminator should receive the input image
                     when classifying the segmentations as real or fake.
+        -- use_correction: whether to use a second network which learns to correct the images
+                           of the fully trained generator.
         """
         self._gen = generator
         self._disc = get_patch_discriminator(input_shape, nb_classes, use_input_for_discriminator)
@@ -33,6 +37,13 @@ class SegmentationGAN:
         self._name = name
         self._nb_classes = nb_classes
         self._use_input_for_disc = use_input_for_discriminator
+
+        # correction network parameters
+        self._use_correction = use_correction
+        self._correction_network = get_unet_architecture(input_shape[0] + nb_classes, input_shape[1],
+                                                         input_shape[1], nb_classes, style="gan")
+        tf.keras.utils.plot_model(self._correction_network, to_file="correc_model.jpg", show_shapes=True)
+        self._corr_training_prop = 0.2  # Proportion of the training images kept to train the second network
 
     def train(self,
               inputs,
@@ -58,6 +69,7 @@ class SegmentationGAN:
                           class. If None, all classes will be of equal
                           importance in the loss.
         """
+
         if class_weights is not None:
             weighted_loss = losses.weighted_categorical_crossentropy(
                 class_weights)
@@ -73,6 +85,14 @@ class SegmentationGAN:
         targets = tf.one_hot(targets.astype(np.uint8),
                              self._nb_classes,
                              axis=1)
+
+        # If a correction network is used, isolate a part of the training data
+        # which will be used to train the correction network
+        if self._use_correction:
+            nb_corr_cases = int(self._corr_training_prop * inputs.shape[0])
+            correction_inputs, correction_targets = inputs[:nb_corr_cases], targets[:nb_corr_cases]
+            inputs, targets = inputs[:nb_corr_cases], targets[:nb_corr_cases]
+            print("Isolating {} cases for correction network training".format(nb_corr_cases))
 
         # Split the data into batches
         total_batches = int(np.ceil(inputs.shape[0] // batch_size))
@@ -121,11 +141,30 @@ DISC loss: {:1.3f}".format(base_loss, gan_loss, gen_loss, disc_loss))
                 print("Saving model into ", savefile)
                 self._gen.save(savefile)
 
-        # ===========================================================
-
         # Save the model at the end of the training phase
         print("Saving model into ", savefile)
         self._gen.save(savefile)
+
+        # ===========================================================
+        # CORRECTION NETWORK TRAINING (IF NEEDED)
+        # We will now use the generator to segment the images which were kept for correction training,
+        # and pass them to the correction network. The targets remain the same, and the
+        # correction network also receives the input images.
+        if self._use_correction:
+            segmentations = self._gen(correction_inputs)
+
+            # Stacks the generated segmentations and the original images along the channels axis
+            # If the images are RGB and there are 2 segmentation classes, the shape of
+            # correction_data will be (batch_size, 3 + 2, h, w)
+            correction_data = np.stack((segmentations, correction_inputs), axis=1)
+
+            correction_lr = LinearLRSchedule(2e-4, epochs//2 * total_batches)
+            correction_optim = tf.keras.optimizers.Adam(learning_rate=correction_lr, beta_1=0.5)
+            self._correction_network.compile(optimizer=correction_optim, loss=losses.correction_loss)
+
+            self._correction_network.fit(correction_data, correction_targets, batch_size=batch_size, epochs=epochs//2)
+
+        # ===========================================================
 
         # Applies the gen to the validation data
         print("Applying to the validation data")
