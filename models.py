@@ -7,7 +7,11 @@ from tensorflow.keras.models import Model
 import tensorflow.keras.layers as layers
 
 
-def get_unet_architecture(n_ch, input_height, input_width, nb_classes, style="classic"):
+def get_unet_architecture(n_ch,
+                          input_height,
+                          input_width,
+                          nb_classes,
+                          style="classic"):
     """
     Defines a UNet architecture of adapted to the given image size.
     -- n_ch: Number of channels to be expected in the images;
@@ -16,8 +20,8 @@ def get_unet_architecture(n_ch, input_height, input_width, nb_classes, style="cl
     -- nb_classes: Number of segmentation classes
     -- style: 'classic' or 'gan'. If GAN, no reshaping is applied.
     """
-    # Since the unet contains 3 max pooling layers, we need to make the input dimensions
-    # divided by 8
+    # Since the unet contains 3 max pooling layers, we need to make
+    # the input dimensions divided by 8
     input_height = int(input_height / 8) * 8
     input_width = int(input_width / 8) * 8
     print("Input shape: ", input_height, input_width)
@@ -158,7 +162,9 @@ def downsampling(filters, size, apply_batchnorm=True):
     return result
 
 
-def get_patch_discriminator(input_image_shape, nb_classes, use_input_image=True):
+def get_patch_discriminator(input_image_shape,
+                            nb_classes,
+                            use_input_image=True):
     """
     Returns a patch net discriminator.
     -- input_image_shape: Shape of the input image, including the channels
@@ -174,8 +180,8 @@ def get_patch_discriminator(input_image_shape, nb_classes, use_input_image=True)
     image_input = layers.Input(shape=input_image_shape, name="input_img")
 
     x = layers.Input(
-            shape=[nb_classes, input_image_shape[1], input_image_shape[2]],
-            name="target_image")
+        shape=[nb_classes, input_image_shape[1], input_image_shape[2]],
+        name="target_image")
     inputs = [x]
 
     if use_input_image:
