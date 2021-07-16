@@ -217,11 +217,11 @@ DISC loss: {:1.3f}".format(base_loss, gan_loss, gen_loss, disc_loss))
                    check_contrast=False)
         return
 
-    def segment(self, x, results_dir="seggan_test", batch_size=1):
+    def segment(self, x, batch_size=1):
         """
         Performs segmentation on a given set of data.
         -- x: Input data, as an array of shape (batch_size, c, h, w).
         returns the segmentations as an array of shape (batch_size, h, w)
         """
-        probas = self.__gen.predict(x, batch_size=batch_size)
+        probas = self._gen.predict(x, batch_size=batch_size)
         return np.argmax(probas, axis=1)
